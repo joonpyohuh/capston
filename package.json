@@ -1,0 +1,13 @@
+{
+  "name": "distance-reply-proto",
+  "private": true,
+  "type": "module",
+  "description": "DistanceReply 웹 + OpenAI 분석 API (/api/analyze)",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
