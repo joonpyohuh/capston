@@ -1,6 +1,13 @@
 {
   "version": 2,
-  "functions": {
-    "api/analyze.js": { "maxDuration": 60 }
-  }
+  "builds": [
+    { "src": "public/index.html", "use": "@vercel/static" },
+    { "src": "api/analyze.js",    "use": "@vercel/node" },
+    { "src": "api/health.js",     "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/health",  "dest": "/api/health.js"  },
+    { "src": "/api/analyze", "dest": "/api/analyze.js" },
+    { "src": "/(.*)",        "dest": "/public/index.html" }
+  ]
 }
