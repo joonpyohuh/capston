@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DistanceReply · 관계 맥락 보조</title>
+  <style>
+    :root {
+      --bg: rgba(255, 255, 255, 0.55);
+      --panel: rgba(255, 255, 255, 0.78);
+      --border: rgba(180, 210, 235, 0.65);
+      --text: #3a4a5c;
+      --muted: #6b7d92;
+      --accent: #5a9fd4;
+      --accent-soft: rgba(90, 159, 212, 0.2);
+      --lock: #c9a06c;
+      --ai-allow: #6bb89a;
+      --purpose-a: rgba(230, 245, 255, 0.9);
+      --purpose-b: rgba(240, 250, 240, 0.9);
+      --purpose-c: rgba(255, 240, 248, 0.9);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 15px;
+      background: linear-gradient(168deg, #b8dfff 0%, #e3f2ff 28%, #f2ecff 58%, #ffe8f4 100%);
+      background-attachment: fixed;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 85% 55% at 15% 15%, rgba(255, 255, 255, 0.92) 0%, transparent 52%),
+        radial-gradient(ellipse 70% 50% at 88% 22%, rgba(200, 230, 255, 0.75) 0%, transparent 48%),
+        radial-gradient(ellipse 65% 45% at 45% 88%, rgba(255, 228, 245, 0.65) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 35% at 72% 65%, rgba(220, 240, 255, 0.5) 0%, transparent 42%);
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+    h1 { font-size: 1.35rem; font-weight: 700; margin: 0 0 0.25rem; color: #2d4a66; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); font-size: 0.875rem; margin-bottom: 1.5rem; }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.1rem 1.2rem;
+      margin-bottom: 1.1rem;
+      box-shadow: 0 10px 40px rgba(130, 170, 210, 0.14);
+      backdrop-filter: blur(14px);
+    }
+    section h2 {
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .tabs button {
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .tabs button[aria-selected="true"] {
+      border-color: rgba(90, 159, 212, 0.55);
+      background: var(--accent-soft);
+      color: #2d6fad;
+      font-weight: 600;
+    }
+    .panel-hidden { display: none; }
+    label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="file"] { font-size: 0.8rem; color: var(--muted); width: 100%; }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      padding: 0.6rem 0.75rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .row { display: grid; gap: 0.75rem; }
+    @media (min-width: 520px) {
+      .row-2 { grid-template-columns: 1fr 1fr; }
+    }
+    select {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+    }
+    .metric {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.65rem 0.75rem;
+      margin-bottom: 0.5rem;
+      outline: none;
+      background: rgba(255, 255, 255, 0.45);
+    }
+    .metric:focus-within { border-color: var(--accent); }
+    .metric-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.45rem;
+    }
+    .metric-name { font-weight: 500; font-size: 0.9rem; }
+    .metric-val { font-variant-numeric: tabular-nums; color: #2d7fc4; min-width: 2.5rem; text-align: right; }
+    .metric-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .metric-ctrl input[type="range"] {
+      flex: 1;
+      min-width: 120px;
+      accent-color: var(--accent);
+    }
+    .metric-ctrl button {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .metric-ctrl button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .lock {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--lock);
+      cursor: pointer;
+      user-select: none;
+    }
+    .lock input { accent-color: var(--lock); }
+    .ai-allow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      color: var(--ai-allow);
+      cursor: pointer;
+      user-select: none;
+    }
+    .ai-allow input { accent-color: var(--ai-allow); }
+    .metric-toggles { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; margin-bottom: 0.4rem; align-items: center; }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.75rem; }
+    .bar-wrap { height: 7px; background: rgba(200, 225, 245, 0.65); border-radius: 999px; margin-top: 0.35rem; overflow: hidden; }
+    .bar { height: 100%; background: linear-gradient(90deg, #7ec8f0, #5a9fd4); border-radius: 999px; transition: width 0.12s ease; }
+    a { color: #2d7fc4; }
+    .inp {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .btn-row button {
+      padding: 0.45rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .analyze-bar {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(180, 210, 235, 0.5);
+    }
+    #btn-analyze {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(90, 159, 212, 0.45);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(220, 240, 255, 0.85));
+      color: #256cad;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(120, 160, 200, 0.2);
+    }
+    #btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+    #analyze-status { margin-top: 0.5rem; margin-bottom: 0; min-height: 1.25em; }
+    #analysis-section .analysis-detail {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    #analysis-section .analysis-subtitle {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #5a7a9a;
+      margin: 0 0 0.4rem;
+    }
+    #analysis-section .analysis-block {
+      margin-bottom: 1.1rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(200, 225, 245, 0.75);
+    }
+    #analysis-section .analysis-block .analysis-body { margin: 0; white-space: pre-wrap; }
+    #analysis-section .analysis-angle h4 {
+      margin: 0.65rem 0 0.3rem;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #2f4a66;
+    }
+    #analysis-section .analysis-angle:first-of-type h4 { margin-top: 0.35rem; }
+    #analysis-suggestions { list-style: none; padding-left: 0 !important; }
+    #analysis-suggestions li {
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(200, 225, 245, 0.8);
+      box-shadow: 0 4px 18px rgba(150, 185, 220, 0.12);
+    }
+    #analysis-suggestions .sug-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.4rem;
+    }
+    #analysis-suggestions .sug-text { margin: 0; font-weight: 600; color: #2f4a66; flex: 1; min-width: 0; }
+    #analysis-suggestions .sug-close {
+      flex-shrink: 0;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #3d7a8c;
+      background: linear-gradient(135deg, rgba(200, 240, 255, 0.9), rgba(230, 220, 255, 0.85));
+      border: 1px solid rgba(180, 215, 235, 0.9);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    #analysis-suggestions .sug-reason { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+    pre#summary {
+      margin: 0 !important;
+      white-space: pre-wrap !important;
+      font-size: 0.85rem !important;
+      color: var(--muted) !important;
+      background: rgba(255, 255, 255, 0.5) !important;
+      border-radius: 14px;
+      padding: 0.75rem 0.9rem !important;
+      border: 1px solid rgba(200, 220, 240, 0.6);
+    }
+    .rel-viz-wrap {
+      margin-top: 0.35rem;
+      background: rgba(255, 255, 255, 0.52);
+      border: 1px solid rgba(190, 215, 240, 0.75);
+      border-radius: 16px;
+      padding: 0.8rem 0.9rem 0.95rem;
+    }
+    .rel-viz-track {
+      position: relative;
+      height: 96px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(228, 245, 255, 0.72), rgba(245, 236, 255, 0.7));
+      border: 1px solid rgba(185, 218, 242, 0.6);
+      overflow: hidden;
+    }
+    .rel-viz-link {
+      position: absolute;
+      left: 0;
+      top: 46px;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(122, 190, 225, 0.2), rgba(255, 166, 204, 0.45));
+      transition: left 0.2s ease, width 0.2s ease, opacity 0.2s ease;
+      opacity: 0.9;
+    }
+    .rel-node {
+      position: absolute;
+      transform: translateX(-50%);
+      top: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      transition: left 0.22s ease;
+    }
+    .rel-face {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 1.2rem;
+      border: 1px solid rgba(150, 195, 228, 0.6);
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 4px 12px rgba(130, 170, 205, 0.2);
+    }
+    .rel-name {
+      font-size: 0.72rem; color: #4f6176;
+      max-width: 80px; text-align: center;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .rel-viz-meta {
+      margin-top: 0.5rem; font-size: 0.78rem; color: var(--muted);
+      display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .relation-fs { border: none; margin: 0 0 0.85rem; padding: 0; }
+    .relation-fs legend { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; font-weight: 600; }
+    .relation-fs .req { color: #c45a6a; font-weight: 700; }
+    .relation-row { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; }
+    .relation-row label { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0; cursor: pointer; font-size: 0.9rem; color: var(--text); }
+    .relation-row input { accent-color: var(--accent); }
+    .file-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; min-height: 0; }
+    .file-chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: rgba(220, 240, 255, 0.85); border: 1px solid rgba(160, 200, 235, 0.7);
+      border-radius: 999px; padding: 0.22rem 0.6rem; font-size: 0.78rem; color: #2d5a80; max-width: 220px;
+    }
+    .file-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-chip button { background: none; border: none; cursor: pointer; color: #7a9ab5; font-size: 0.85rem; padding: 0; line-height: 1; flex-shrink: 0; }
+    .file-chip button:hover { color: #c45a6a; }
+    .purpose-cards { display: grid; gap: 0.5rem; }
+    @media (min-width: 520px) { .purpose-cards { grid-template-columns: repeat(3, 1fr); } }
+    .purpose-card {
+      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      padding: 0.75rem 0.6rem; border-radius: 16px; border: 2px solid transparent;
+      cursor: pointer; user-select: none; transition: border-color 0.15s, background 0.15s;
+      background: rgba(255, 255, 255, 0.55); text-align: center;
+    }
+    .purpose-card:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+    .purpose-card input { display: none; }
+    .purpose-icon { font-size: 1.5rem; }
+    .purpose-title { font-weight: 600; font-size: 0.88rem; color: #2d4a66; }
+    .purpose-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.3; }
+    .timing-block {
+      background: linear-gradient(135deg, rgba(200, 235, 255, 0.7), rgba(220, 210, 255, 0.6));
+      border: 1px solid rgba(170, 210, 245, 0.8);
+    }
+    .timing-delay { font-size: 1.15rem; font-weight: 700; color: #1e5a8a; margin-bottom: 0.35rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>DistanceReply</h1>
+    <p class="sub">대화 기록과 관계·상황 설명을 바탕으로 거리두기 맥락을 분석합니다. 지표는 0–100 동적 조절·잠금이 가능합니다.</p>
+
+    <section aria-labelledby="in-title">
+      <h2 id="in-title">입력</h2>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-file" aria-selected="true" aria-controls="pane-file">텍스트 파일 (.txt)</button>
+        <button type="button" role="tab" id="tab-sms" aria-selected="false" aria-controls="pane-sms">안드로이드 문자</button>
+      </div>
+      <div id="pane-file" role="tabpanel" aria-labelledby="tab-file">
+        <label>카카오톡 대화내보내기 .txt <span style="color:var(--muted);font-weight:400">(여러 파일 추가 가능)</span></label>
+        <div id="file-list" class="file-list"></div>
+        <input type="file" id="file-txt" accept=".txt,text/plain" multiple />
+        <p class="hint" style="margin-top:0.4rem">파일을 추가할 때마다 대화 내용이 누적됩니다. ✕ 버튼으로 개별 파일을 제거할 수 있습니다.</p>
+      </div>
+      <div id="pane-sms" class="panel-hidden" role="tabpanel" aria-labelledby="tab-sms">
+        <label for="sms-paste">문자 내용 붙여넣기 또는 아래에서 .txt 업로드</label>
+        <textarea id="sms-paste" placeholder="SMS 백업 앱에서 내보낸 내용을 붙여넣으세요."></textarea>
+        <label for="file-sms" style="margin-top:0.6rem">문자보내기.txt (선택)</label>
+        <input type="file" id="file-sms" accept=".txt,text/plain" />
+      </div>
+      <label for="ctx" style="margin-top:1rem">관계·상황 설명 (직접 입력)</label>
+      <textarea id="ctx" placeholder="상대와의 관계, 지금 상황, 거리두고 싶은 이유 등"></textarea>
+    </section>
+
+    <section aria-labelledby="purpose-title">
+      <h2 id="purpose-title">사용 목적</h2>
+      <p class="hint" style="margin-top:0;margin-bottom:0.75rem">현재 이 상대와 어떤 방향으로 조절하고 싶은지 선택하세요. 분석 전략과 답변 컨설팅이 목적에 맞게 달라집니다.</p>
+      <div class="purpose-cards" role="radiogroup" aria-label="사용 목적 선택">
+        <label class="purpose-card" for="purpose-distance">
+          <input type="radio" name="user-purpose" id="purpose-distance" value="distance" checked />
+          <span class="purpose-icon">🌊</span>
+          <span class="purpose-title">거리두기</span>
+          <span class="purpose-desc">자연스럽게 멀어지고 싶어요. 감정 소비를 줄이고 관계 온도를 낮추고 싶습니다.</span>
+        </label>
+        <label class="purpose-card" for="purpose-gauge">
+          <input type="radio" name="user-purpose" id="purpose-gauge" value="gauge" />
+          <span class="purpose-icon">🔍</span>
+          <span class="purpose-title">관계 파악</span>
+          <span class="purpose-desc">현재 관계 거리와 상태가 궁금해요. 어떤 상황인지 객관적으로 분석받고 싶습니다.</span>
+        </label>
+        <label class="purpose-card" for="purpose-closer">
+          <input type="radio" name="user-purpose" id="purpose-closer" value="closer" />
+          <span class="purpose-icon">🌱</span>
+          <span class="purpose-title">가까워지기</span>
+          <span class="purpose-desc">더 친해지고 싶어요. 어색함을 줄이고 자연스럽게 연결되고 싶습니다.</span>
+        </label>
+      </div>
+    </section>
+
+    <section aria-labelledby="user-title">
+      <h2 id="user-title">사용자 지정</h2>
+      <div class="tabs" role="tablist" id="user-mode-tabs">
+        <button type="button" role="tab" id="tab-user-direct" aria-selected="true" aria-controls="pane-user-direct">직접 입력</button>
+        <button type="button" role="tab" id="tab-user-saved" aria-selected="false" aria-controls="pane-user-saved">저장 프로필 (카테고리)</button>
+      </div>
+      <fieldset class="relation-fs">
+        <legend>관계 유형 <span class="req" aria-hidden="true">*</span></legend>
+        <div class="relation-row" role="radiogroup" aria-label="동성 또는 이성 관계">
+          <label><input type="radio" name="relation-type" id="rel-type-same" value="same" /> 동성 관계</label>
+          <label><input type="radio" name="relation-type" id="rel-type-opposite" value="opposite" /> 이성 관계</label>
+        </div>
+        <p class="hint" style="margin-top:0.45rem;margin-bottom:0">둘 중 하나를 선택해야 분석이 시작됩니다.</p>
+      </fieldset>
+      <div id="pane-user-direct" role="tabpanel" aria-labelledby="tab-user-direct">
+        <div class="row row-2">
+          <div>
+            <label for="direct-me">나 (발화 기준)</label>
+            <input type="text" id="direct-me" class="inp" list="name-suggestions" placeholder="예: 나, 민지, 태연" autocomplete="off" />
+          </div>
+          <div>
+            <label for="direct-them">상대</label>
+            <input type="text" id="direct-them" class="inp" list="name-suggestions" placeholder="예: 길동, 미래" autocomplete="off" />
+          </div>
+        </div>
+        <datalist id="name-suggestions"></datalist>
+      </div>
+      <div id="pane-user-saved" class="panel-hidden" role="tabpanel" aria-labelledby="tab-user-saved">
+        <label for="saved-profile-select">불러올 카테고리</label>
+        <select id="saved-profile-select"></select>
+        <div class="row row-2" style="margin-top:0.75rem">
+          <div>
+            <label for="saved-cat-name">카테고리 이름</label>
+            <input type="text" id="saved-cat-name" class="inp" placeholder="예: 전 소개팅 상대, 직장 동료" autocomplete="off" />
+          </div>
+        </div>
+        <div class="row row-2" style="margin-top:0.75rem">
+          <div>
+            <label for="saved-me">나</label>
+            <input type="text" id="saved-me" class="inp" list="name-suggestions" autocomplete="off" />
+          </div>
+          <div>
+            <label for="saved-them">상대</label>
+            <input type="text" id="saved-them" class="inp" list="name-suggestions" autocomplete="off" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="btn-profile-new">새로 저장</button>
+          <button type="button" id="btn-profile-update">선택 항목 정보 반영</button>
+          <button type="button" id="btn-profile-delete">선택 항목 삭제</button>
+        </div>
+      </div>
+      <div class="analyze-bar">
+        <button type="button" id="btn-analyze">분석 시작</button>
+        <p id="analyze-status" class="hint" role="status"></p>
+      </div>
+    </section>
+
+    <section aria-labelledby="met-title">
+      <h2 id="met-title">관계 지표 (0–100)</h2>
+      <p class="hint" style="margin-top:0;margin-bottom:0.75rem">직접 조작 잠금: 본인이 슬라이더·버튼으로 바꾸는 것만 막습니다. AI 분석 반영 허용: 켜진 지표만 AI 결과로 값이 바뀝니다.</p>
+      <div id="metrics-root"></div>
+      <div class="rel-viz-wrap">
+        <div class="rel-viz-track">
+          <div id="rel-link" class="rel-viz-link" aria-hidden="true"></div>
+          <div id="rel-me" class="rel-node">
+            <div id="rel-me-face" class="rel-face">😶</div>
+            <div id="rel-me-name" class="rel-name">나</div>
+          </div>
+          <div id="rel-them" class="rel-node">
+            <div id="rel-them-face" class="rel-face">😶</div>
+            <div id="rel-them-name" class="rel-name">상대</div>
+          </div>
+        </div>
+        <div class="rel-viz-meta">
+          <span id="rel-distance-text">관계 거리: 50/100</span>
+          <span id="rel-tone-text">분위기: 중립</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="sum-title">
+      <h2 id="sum-title">맥락 요약</h2>
+      <pre id="summary"></pre>
+    </section>
+
+    <section aria-labelledby="analysis-title" id="analysis-section">
+      <h2 id="analysis-title">답변 추천 · 관계 해설</h2>
+      <p id="analysis-placeholder" class="hint" style="margin:0">분석 시작 후 선택·지표 종합, 다각적 심층 분석, 관계 해설, 답장 타이밍, 답변 3개가 여기에 표시됩니다.</p>
+      <p id="analysis-last-them" class="hint" style="margin-top:0.65rem;display:none"></p>
+      <div id="analysis-detail" class="analysis-detail" style="display:none"></div>
+      <ol id="analysis-suggestions" style="margin:0.75rem 0 0;padding-left:1.2rem;"></ol>
+    </section>
+  </div>
+
+  <script>
+    const METRICS = [
+      { id: "affinity", name: "호감·신뢰 (관계도)", desc: "상대에 대한 긍정적 친밀·신뢰 정도" },
+      { id: "closeness", name: "대화 친밀도", desc: "대화 빈도·깊이로 본 가까움" },
+      { id: "burden", name: "부담·소모", desc: "답장·관계 유지에 느끼는 피로" },
+      { id: "distanceWill", name: "거리두기 의지", desc: "지금보다 더 거리를 두려는 강도" },
+    ];
+    const LS_PROFILES = "distanceReplyProfiles_v1";
+    const state = {
+      uploadedFiles: [], rawSmsSingle: "", participants: [], savedProfiles: [],
+      userMode: "direct", userPurpose: "distance",
+      values: Object.fromEntries(METRICS.map((m) => [m.id, 50])),
+      locked: Object.fromEntries(METRICS.map((m) => [m.id, false])),
+      aiAdjustAllowed: Object.fromEntries(METRICS.map((m) => [m.id, true])),
+      lastAnalysisBrief: "", lastSelectionSynthesis: "", lastDeepAngles: [],
+      lastThemMessage: "", lastRelationshipDetail: "", lastReplySuggestions: [], lastReplyTiming: null,
+    };
+    const els = {
+      tabFile: document.getElementById("tab-file"), tabSms: document.getElementById("tab-sms"),
+      paneFile: document.getElementById("pane-file"), paneSms: document.getElementById("pane-sms"),
+      fileTxt: document.getElementById("file-txt"), fileSms: document.getElementById("file-sms"),
+      smsPaste: document.getElementById("sms-paste"), ctx: document.getElementById("ctx"),
+      tabUserDirect: document.getElementById("tab-user-direct"), tabUserSaved: document.getElementById("tab-user-saved"),
+      paneUserDirect: document.getElementById("pane-user-direct"), paneUserSaved: document.getElementById("pane-user-saved"),
+      directMe: document.getElementById("direct-me"), directThem: document.getElementById("direct-them"),
+      nameSuggestions: document.getElementById("name-suggestions"),
+      savedProfileSelect: document.getElementById("saved-profile-select"),
+      savedCatName: document.getElementById("saved-cat-name"),
+      savedMe: document.getElementById("saved-me"), savedThem: document.getElementById("saved-them"),
+      btnProfileNew: document.getElementById("btn-profile-new"),
+      btnProfileUpdate: document.getElementById("btn-profile-update"),
+      btnProfileDelete: document.getElementById("btn-profile-delete"),
+      btnAnalyze: document.getElementById("btn-analyze"),
+      analyzeStatus: document.getElementById("analyze-status"),
+      metricsRoot: document.getElementById("metrics-root"), summary: document.getElementById("summary"),
+      relMe: document.getElementById("rel-me"), relThem: document.getElementById("rel-them"),
+      relMeFace: document.getElementById("rel-me-face"), relThemFace: document.getElementById("rel-them-face"),
+      relMeName: document.getElementById("rel-me-name"), relThemName: document.getElementById("rel-them-name"),
+      relLink: document.getElementById("rel-link"),
+      relDistanceText: document.getElementById("rel-distance-text"), relToneText: document.getElementById("rel-tone-text"),
+      relTypeSame: document.getElementById("rel-type-same"), relTypeOpposite: document.getElementById("rel-type-opposite"),
+      analysisPlaceholder: document.getElementById("analysis-placeholder"),
+      analysisLastThem: document.getElementById("analysis-last-them"),
+      analysisDetail: document.getElementById("analysis-detail"),
+      analysisSuggestions: document.getElementById("analysis-suggestions"),
+      fileList: document.getElementById("file-list"),
+    };
+
+    function loadProfiles() { try { const j = localStorage.getItem(LS_PROFILES); const a = j ? JSON.parse(j) : []; return Array.isArray(a) ? a : []; } catch { return []; } }
+    function persistProfiles() { localStorage.setItem(LS_PROFILES, JSON.stringify(state.savedProfiles)); }
+    function updateDatalist() { els.nameSuggestions.innerHTML = ""; for (const n of state.participants) { const o = document.createElement("option"); o.value = n; els.nameSuggestions.appendChild(o); } }
+    function syncSavedFieldsFromSelection() {
+      const id = els.savedProfileSelect.value; const p = state.savedProfiles.find((x) => x.id === id);
+      if (p) { els.savedCatName.value = p.category; els.savedMe.value = p.me; els.savedThem.value = p.them; setRelationType(p.relationType === "same" || p.relationType === "opposite" ? p.relationType : ""); }
+      else { els.savedCatName.value = ""; els.savedMe.value = ""; els.savedThem.value = ""; setRelationType(""); }
+    }
+    function renderSavedSelect() {
+      const sel = els.savedProfileSelect; const keep = sel.value; sel.innerHTML = "";
+      const opt0 = document.createElement("option"); opt0.value = ""; opt0.textContent = "— 선택 —"; sel.appendChild(opt0);
+      for (const p of state.savedProfiles) { const o = document.createElement("option"); o.value = p.id; o.textContent = p.category || "(이름 없음)"; sel.appendChild(o); }
+      if (keep && state.savedProfiles.some((x) => x.id === keep)) sel.value = keep;
+      else if (state.savedProfiles.length === 1) sel.value = state.savedProfiles[0].id;
+      else sel.value = "";
+      syncSavedFieldsFromSelection();
+    }
+    function getEffectiveNames() { return state.userMode === "direct" ? { me: els.directMe.value.trim(), them: els.directThem.value.trim() } : { me: els.savedMe.value.trim(), them: els.savedThem.value.trim() }; }
+    function getRelationType() { const c = document.querySelector('input[name="relation-type"]:checked'); return c && (c.value === "same" || c.value === "opposite") ? c.value : ""; }
+    function relationTypeLabel() { const t = getRelationType(); if (t === "same") return "동성 관계"; if (t === "opposite") return "이성 관계"; return "(미선택)"; }
+    function setRelationType(value) { if (value === "same") { els.relTypeSame.checked = true; els.relTypeOpposite.checked = false; } else if (value === "opposite") { els.relTypeOpposite.checked = true; els.relTypeSame.checked = false; } else { els.relTypeSame.checked = false; els.relTypeOpposite.checked = false; } }
+    function getUserPurpose() { const c = document.querySelector('input[name="user-purpose"]:checked'); return c ? c.value : "distance"; }
+    function purposeLabel(p) { if (p === "distance") return "거리두기"; if (p === "gauge") return "관계 파악"; if (p === "closer") return "가까워지기"; return p; }
+
+    function renderFileList() {
+      els.fileList.innerHTML = "";
+      state.uploadedFiles.forEach((f, i) => {
+        const chip = document.createElement("div"); chip.className = "file-chip";
+        const span = document.createElement("span"); span.textContent = f.name;
+        const btn = document.createElement("button"); btn.type = "button"; btn.textContent = "✕"; btn.title = "이 파일 제거";
+        btn.addEventListener("click", () => { state.uploadedFiles.splice(i, 1); refreshParticipants(); updateSummary(); renderFileList(); });
+        chip.appendChild(span); chip.appendChild(btn); els.fileList.appendChild(chip);
+      });
+    }
+
+    function isLikelyDateOrTime(s) {
+      const t = String(s || "").trim();
+      if (t.length === 0) return true;
+      if (t.length <= 2 && /^\d+$/.test(t)) return true;
+      if (/^\d{4}\s*년/.test(t)) return true;
+      if (/\d{1,2}\s*월\s*\d{1,2}\s*일/.test(t)) return true;
+      if (/오전|오후/.test(t) && /\d/.test(t)) return true;
+      if (/^\d{4}[.\-/]\s*\d{1,2}[.\-/]\s*\d{1,2}/.test(t)) return true;
+      if (/^\d{1,2}:\d{2}/.test(t)) return true;
+      if (/월\s*\d{1,2}\s*일/.test(t)) return true;
+      if (/^[월화수목금토일]/.test(t)) return true;
+      if (/^[\d\s.\-:\/월오전후분초]+$/u.test(t)) return true;
+      if (/^\d{4}-\d{2}-\d{2}/.test(t)) return true;
+      return false;
+    }
+
+    function extractMeUtterances(dialogue, meLabel) {
+      const me = (meLabel || "").trim(); if (!me) return [];
+      const lines = dialogue.split(/\r?\n/); const out = [];
+      for (const line of lines) {
+        const trimmed = line.trim(); if (!trimmed) continue;
+        const sep = trimmed.indexOf(" : ");
+        if (sep > 0) { const left = trimmed.slice(0, sep); const c = left.lastIndexOf(","); if (c >= 0) { const name = left.slice(c + 1).trim(); if (!isLikelyDateOrTime(name) && name === me) { const body = trimmed.slice(sep + 3).trim(); if (body) out.push(body); } } continue; }
+        const br = trimmed.match(/^\[([^\]]+)\]\s*(.+)$/); if (br) { const name = br[1].trim(); if (!isLikelyDateOrTime(name) && name === me) out.push(br[2].trim()); continue; }
+        const col = trimmed.match(/^([^:\n]{1,40})\s*:\s*(.+)$/); if (col && !/^https?:/i.test(trimmed)) { const name = col[1].trim(); if (!isLikelyDateOrTime(name) && name === me) out.push(col[2].trim()); }
+      }
+      return out;
+    }
+    function buildMeVoiceExcerpt(dialogue, meLabel) { const msgs = extractMeUtterances(dialogue, meLabel); let blob = msgs.join("\n"); if (blob.length > 8000) blob = blob.slice(-8000); return blob; }
+
+    function extractParticipants(text) {
+      const s = new Set(); const lines = text.split(/\r?\n/).slice(0, 8000); const reSms = /^(?:From|To|발신|수신)\s*[:：]\s*([^\n]+)/i;
+      for (const line of lines) {
+        const sep = line.indexOf(" : "); if (sep > 0) { const left = line.slice(0, sep); const c = left.lastIndexOf(","); if (c >= 0) { const name = left.slice(c + 1).trim(); if (name && !isLikelyDateOrTime(name)) s.add(name.slice(0, 40)); } }
+        let m = line.match(reSms); if (m) { const n = m[1].trim().slice(0, 40); if (!isLikelyDateOrTime(n)) s.add(n); }
+        for (const bm of line.matchAll(/\[([^\]\n]{1,40})\]/g)) { const n = bm[1].trim(); if (!isLikelyDateOrTime(n)) s.add(n); }
+      }
+      return Array.from(s).filter((x) => x.length > 0 && x.length <= 40 && !isLikelyDateOrTime(x)).slice(0, 32);
+    }
+
+    function buildCombinedText() {
+      const paste = els.smsPaste.value.trim(); const parts = [];
+      for (const f of state.uploadedFiles) { if (f.text) parts.push(f.text); }
+      if (state.rawSmsSingle) parts.push(state.rawSmsSingle);
+      if (paste) parts.push(paste);
+      return parts.join("\n\n---\n\n");
+    }
+    function refreshParticipants() { state.participants = extractParticipants(buildCombinedText()); updateDatalist(); }
+    function clamp(n) { return Math.max(0, Math.min(100, n)); }
+    function syncMetricDom(id) {
+      const v = state.values[id];
+      const range = document.querySelector(`input[data-metric="${id}"][type="range"]`);
+      const span = document.querySelector(`[data-metric-val="${id}"]`);
+      const bar = document.querySelector(`[data-metric-bar="${id}"]`);
+      if (range) range.value = String(v); if (span) span.textContent = String(v); if (bar) bar.style.width = v + "%";
+    }
+    function setMetric(id, v) { if (state.locked[id]) return; state.values[id] = clamp(v); syncMetricDom(id); updateSummary(); }
+    function applyAiMetric(id, v) { if (!METRICS.some((m) => m.id === id)) return false; if (!state.aiAdjustAllowed[id]) return false; state.values[id] = clamp(v); syncMetricDom(id); updateSummary(); return true; }
+    window.distanceReply = { applyAiMetric, getState: () => ({ values: { ...state.values }, locked: { ...state.locked }, aiAdjustAllowed: { ...state.aiAdjustAllowed } }) };
+
+    function renderMetrics() {
+      els.metricsRoot.innerHTML = "";
+      for (const m of METRICS) {
+        const v = state.values[m.id]; const row = document.createElement("div"); row.className = "metric"; row.tabIndex = 0; row.dataset.metricRow = m.id;
+        row.innerHTML = `<div class="metric-head"><span class="metric-name">${m.name}</span><span class="metric-val" data-metric-val="${m.id}">${v}</span></div><div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.35rem">${m.desc}</div><div class="metric-toggles"><label class="lock"><input type="checkbox" data-lock="${m.id}" ${state.locked[m.id] ? "checked" : ""} /> 직접 조작 잠금</label><label class="ai-allow"><input type="checkbox" data-ai-allow="${m.id}" ${state.aiAdjustAllowed[m.id] ? "checked" : ""} /> AI 분석 반영 허용</label></div><div class="metric-ctrl"><button type="button" data-step="${m.id}" data-delta="-5">−5</button><button type="button" data-step="${m.id}" data-delta="-1">−1</button><input type="range" min="0" max="100" step="1" value="${v}" data-metric="${m.id}" ${state.locked[m.id] ? "disabled" : ""} /><button type="button" data-step="${m.id}" data-delta="1">+1</button><button type="button" data-step="${m.id}" data-delta="5">+5</button></div><div class="bar-wrap" aria-hidden="true"><div class="bar" data-metric-bar="${m.id}" style="width:${v}%"></div></div>`;
+        els.metricsRoot.appendChild(row);
+      }
+      els.metricsRoot.querySelectorAll('input[type="range"]').forEach((r) => r.addEventListener("input", () => setMetric(r.dataset.metric, Number(r.value))));
+      els.metricsRoot.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => { setMetric(b.dataset.step, state.values[b.dataset.step] + Number(b.dataset.delta)); syncDisabled(b.dataset.step); }));
+      els.metricsRoot.querySelectorAll("[data-lock]").forEach((cb) => cb.addEventListener("change", () => { const id = cb.dataset.lock; state.locked[id] = cb.checked; const range = els.metricsRoot.querySelector(`input[data-metric="${id}"]`); const buttons = els.metricsRoot.querySelectorAll(`[data-step="${id}"]`); if (range) range.disabled = state.locked[id]; buttons.forEach((btn) => (btn.disabled = state.locked[id])); }));
+      els.metricsRoot.querySelectorAll("[data-ai-allow]").forEach((cb) => cb.addEventListener("change", () => { state.aiAdjustAllowed[cb.dataset.aiAllow] = cb.checked; updateSummary(); }));
+      els.metricsRoot.querySelectorAll(".metric").forEach((row) => row.addEventListener("keydown", (e) => { const id = row.dataset.metricRow; if (!id || state.locked[id]) return; const step = e.shiftKey ? 5 : 1; if (e.key === "ArrowLeft") { e.preventDefault(); setMetric(id, state.values[id] - step); } else if (e.key === "ArrowRight") { e.preventDefault(); setMetric(id, state.values[id] + step); } }));
+    }
+    function syncDisabled(id) { if (!state.locked[id]) return; const range = els.metricsRoot.querySelector(`input[data-metric="${id}"]`); const buttons = els.metricsRoot.querySelectorAll(`[data-step="${id}"]`); if (range) range.disabled = true; buttons.forEach((btn) => (btn.disabled = true)); }
+
+    function updateSummary() {
+      const combined = buildCombinedText(); const { me, them } = getEffectiveNames(); const purpose = getUserPurpose();
+      const timingLine = (() => { const t = state.lastReplyTiming; if (!t || !t.suggestedDelay || t.suggestedDelay === "미정") return "(없음)"; return `${t.suggestedDelay} — ${t.reason || ""}`; })();
+      const lines = [
+        "[지정 방식] " + (state.userMode === "direct" ? "직접 입력" : "저장 프로필"),
+        "[사용 목적] " + purposeLabel(purpose), "[관계 유형] " + relationTypeLabel(),
+        "[나] " + (me || "(미설정)"), "[상대] " + (them || "(미설정)"), "",
+        "--- 관계 지표 (0–100) ---",
+        ...METRICS.map((m) => `${m.name}: ${state.values[m.id]} (${state.locked[m.id] ? "잠금" : "조작가능"}, ${state.aiAdjustAllowed[m.id] ? "AI반영" : "AI끄기"})`),
+        "", "--- 상황 설명 ---", els.ctx.value.trim() || "(없음)", "",
+        "--- 업로드 파일 ---", state.uploadedFiles.length > 0 ? state.uploadedFiles.map((f) => `• ${f.name}`).join("\n") : "(없음)", `전체 대화: ${combined.length}자`,
+        "", "--- 답장 타이밍 (AI) ---", timingLine,
+        "", "--- AI 분석 요약 ---", state.lastAnalysisBrief || "(아직 없음)",
+        "", "--- 상대 마지막 메시지 ---", state.lastThemMessage || "(없음)",
+      ];
+      els.summary.textContent = lines.join("\n");
+      renderRelationshipViz(); renderAnalysisRich();
+    }
+
+    function renderRelationshipViz() {
+      const { me, them } = getEffectiveNames();
+      const affinity = Number(state.values.affinity || 0); const closeness = Number(state.values.closeness || 0);
+      const burden = Number(state.values.burden || 0); const distanceWill = Number(state.values.distanceWill || 0);
+      const warmth = Math.max(0, Math.min(100, Math.round((affinity * 0.55) + (closeness * 0.45))));
+      const relationDistance = Math.max(0, Math.min(100, Math.round((100 - closeness) * 0.55 + distanceWill * 0.45)));
+      const left = 18; const right = 82; const span = right - left;
+      const mePos = left + (relationDistance / 100) * (span * 0.4);
+      const themPos = right - (relationDistance / 100) * (span * 0.4);
+      const gap = Math.max(8, themPos - mePos);
+      els.relMe.style.left = `${mePos}%`; els.relThem.style.left = `${themPos}%`;
+      els.relLink.style.left = `${mePos}%`; els.relLink.style.width = `${gap}%`;
+      els.relLink.style.opacity = `${0.35 + (warmth / 100) * 0.6}`;
+      els.relMeFace.textContent = burden >= 70 ? "😩" : distanceWill >= 70 ? "🙂" : warmth >= 70 ? "😊" : "😶";
+      els.relThemFace.textContent = warmth >= 75 ? "😊" : warmth >= 45 ? "🙂" : "😐";
+      els.relMeName.textContent = me || "나"; els.relThemName.textContent = them || "상대";
+      els.relDistanceText.textContent = `관계 거리: ${relationDistance}/100`;
+      els.relToneText.textContent = `분위기: ${warmth >= 70 ? "따뜻함" : warmth >= 45 ? "중립" : "조심스러움"} (부담 ${Math.round(burden)}/100)`;
+    }
+
+    function renderAnalysisRich() {
+      const has = state.lastAnalysisBrief || state.lastSelectionSynthesis || (state.lastDeepAngles && state.lastDeepAngles.length) || state.lastThemMessage || state.lastRelationshipDetail || (state.lastReplySuggestions && state.lastReplySuggestions.some((s) => s && s.text)) || state.lastReplyTiming;
+      els.analysisPlaceholder.style.display = has ? "none" : "block";
+      if (state.lastThemMessage) { els.analysisLastThem.style.display = "block"; els.analysisLastThem.textContent = "상대 마지막 메시지 (추정): " + state.lastThemMessage; }
+      else { els.analysisLastThem.style.display = "none"; els.analysisLastThem.textContent = ""; }
+      els.analysisDetail.innerHTML = "";
+      if (state.lastAnalysisBrief) { const wrap = document.createElement("div"); wrap.className = "analysis-block"; const h = document.createElement("h3"); h.className = "analysis-subtitle"; h.textContent = "핵심 요약"; const p = document.createElement("p"); p.className = "analysis-body"; p.textContent = state.lastAnalysisBrief; wrap.appendChild(h); wrap.appendChild(p); els.analysisDetail.appendChild(wrap); }
+      if (state.lastReplyTiming && state.lastReplyTiming.suggestedDelay && state.lastReplyTiming.suggestedDelay !== "미정") {
+        const wrap = document.createElement("div"); wrap.className = "analysis-block timing-block";
+        const h = document.createElement("h3"); h.className = "analysis-subtitle"; h.textContent = "권장 답장 타이밍";
+        const delay = document.createElement("div"); delay.className = "timing-delay"; delay.textContent = "⏱ " + state.lastReplyTiming.suggestedDelay;
+        const p = document.createElement("p"); p.className = "analysis-body"; p.style.fontSize = "0.875rem"; p.textContent = state.lastReplyTiming.reason || "";
+        wrap.appendChild(h); wrap.appendChild(delay); if (state.lastReplyTiming.reason) wrap.appendChild(p); els.analysisDetail.appendChild(wrap);
+      }
+      if (state.lastSelectionSynthesis) { const wrap = document.createElement("div"); wrap.className = "analysis-block"; const h = document.createElement("h3"); h.className = "analysis-subtitle"; h.textContent = "선택 요소·지표 종합"; const p = document.createElement("p"); p.className = "analysis-body"; p.textContent = state.lastSelectionSynthesis; wrap.appendChild(h); wrap.appendChild(p); els.analysisDetail.appendChild(wrap); }
+      if (state.lastDeepAngles && state.lastDeepAngles.length) {
+        const wrap = document.createElement("div"); wrap.className = "analysis-block"; const h = document.createElement("h3"); h.className = "analysis-subtitle"; h.textContent = "다각적 심층 분석"; wrap.appendChild(h);
+        for (const a of state.lastDeepAngles) { const sub = document.createElement("div"); sub.className = "analysis-angle"; const h4 = document.createElement("h4"); h4.textContent = a.title || "?"; const bp = document.createElement("p"); bp.className = "analysis-body"; bp.textContent = a.body || ""; sub.appendChild(h4); sub.appendChild(bp); wrap.appendChild(sub); }
+        els.analysisDetail.appendChild(wrap);
+      }
+      if (state.lastRelationshipDetail) { const wrap = document.createElement("div"); wrap.className = "analysis-block"; const h = document.createElement("h3"); h.className = "analysis-subtitle"; h.textContent = "관계 심층 해설"; const p = document.createElement("p"); p.className = "analysis-body"; p.textContent = state.lastRelationshipDetail; wrap.appendChild(h); wrap.appendChild(p); els.analysisDetail.appendChild(wrap); }
+      els.analysisDetail.style.display = els.analysisDetail.children.length ? "block" : "none";
+      els.analysisSuggestions.innerHTML = "";
+      let sn = 0;
+      (state.lastReplySuggestions || []).forEach((s) => {
+        if (!s || !String(s.text).trim()) return; sn++;
+        const li = document.createElement("li"); const head = document.createElement("div"); head.className = "sug-head";
+        const p1 = document.createElement("p"); p1.className = "sug-text"; p1.textContent = `${sn}. ${s.text}`;
+        const badge = document.createElement("span"); badge.className = "sug-close";
+        const c = typeof s.closenessAfter === "number" && !Number.isNaN(s.closenessAfter) ? Math.max(0, Math.min(100, Math.round(s.closenessAfter))) : null;
+        badge.textContent = c !== null ? `가까워지는 정도 ${c}/100` : "가까워지는 정도 ?";
+        head.appendChild(p1); head.appendChild(badge);
+        const p2 = document.createElement("p"); p2.className = "sug-reason"; p2.textContent = "이유: " + (s.reason || "?");
+        li.appendChild(head); li.appendChild(p2); els.analysisSuggestions.appendChild(li);
+      });
+    }
+
+    async function runAnalyze() {
+      const { me, them } = getEffectiveNames();
+      if (!getRelationType()) { els.analyzeStatus.textContent = "관계 유형(동성 / 이성)을 선택한 후 다시 시도하세요."; return; }
+      if (!me || !them) { els.analyzeStatus.textContent = "나와 상대를 모두 지정한 후 다시 시도하세요."; return; }
+      const dialogue = buildCombinedText(); const situation = els.ctx.value.trim();
+      if (dialogue.length < 30 && situation.length < 20) { els.analyzeStatus.textContent = "대화 내용이나 상황 설명을 조금 더 적어 주세요."; return; }
+      els.btnAnalyze.disabled = true; els.analyzeStatus.textContent = "분석 중…";
+      try {
+        const meVoiceExcerpt = buildMeVoiceExcerpt(dialogue, me); const purpose = getUserPurpose();
+        const r = await fetch("/api/analyze", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ me, them, relationshipType: getRelationType() === "same" ? "동성" : "이성", userPurpose: purpose, situation, dialogue: dialogue.slice(0, 12000), meVoiceExcerpt, currentMetrics: { ...state.values }, userSelections: { userMode: state.userMode, savedCategory: state.userMode === "saved" ? els.savedCatName.value.trim() : "", userPurpose: purpose, metrics: METRICS.map((m) => ({ id: m.id, nameKo: m.name, value: state.values[m.id], directLockManual: state.locked[m.id], aiResultMayAdjust: state.aiAdjustAllowed[m.id] })) } }),
+        });
+        let data; try { data = await r.json(); } catch { throw new Error("서버 응답을 읽을 수 없습니다."); }
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        const m = data.metrics || {};
+        for (const id of ["affinity", "closeness", "burden", "distanceWill"]) { if (typeof m[id] === "number") applyAiMetric(id, m[id]); }
+        state.lastAnalysisBrief = data.brief || ""; state.lastSelectionSynthesis = data.selectionSynthesis || "";
+        state.lastDeepAngles = Array.isArray(data.deepAngles) ? data.deepAngles : [];
+        state.lastThemMessage = data.lastThemMessage || ""; state.lastRelationshipDetail = data.relationshipDetail || "";
+        state.lastReplySuggestions = Array.isArray(data.replySuggestions) ? data.replySuggestions : [];
+        state.lastReplyTiming = data.replyTiming || null;
+        updateSummary(); els.analyzeStatus.textContent = "반영 완료. 답변·관계해설은 아래 섹션을 보세요.";
+      } catch (e) { els.analyzeStatus.textContent = (e && e.message) || "실패했습니다."; }
+      finally { els.btnAnalyze.disabled = false; }
+    }
+
+    function readFileAsText(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result || "")); r.onerror = () => rej(r.error); r.readAsText(file, "UTF-8"); }); }
+
+    els.tabFile.addEventListener("click", () => { els.tabFile.setAttribute("aria-selected", "true"); els.tabSms.setAttribute("aria-selected", "false"); els.paneFile.classList.remove("panel-hidden"); els.paneSms.classList.add("panel-hidden"); });
+    els.tabSms.addEventListener("click", () => { els.tabSms.setAttribute("aria-selected", "true"); els.tabFile.setAttribute("aria-selected", "false"); els.paneSms.classList.remove("panel-hidden"); els.paneFile.classList.add("panel-hidden"); });
+    els.fileTxt.addEventListener("change", async (e) => { const files = Array.from(e.target.files || []); for (const f of files) { const text = await readFileAsText(f); state.uploadedFiles.push({ name: f.name, text }); } e.target.value = ""; refreshParticipants(); updateSummary(); renderFileList(); });
+    els.fileSms.addEventListener("change", async (e) => { const f = e.target.files?.[0]; if (!f) return; state.rawSmsSingle = await readFileAsText(f); refreshParticipants(); updateSummary(); });
+    els.smsPaste.addEventListener("input", () => { refreshParticipants(); updateSummary(); });
+    els.ctx.addEventListener("input", updateSummary);
+    els.directMe.addEventListener("input", updateSummary); els.directThem.addEventListener("input", updateSummary);
+    document.querySelectorAll('input[name="relation-type"]').forEach((r) => r.addEventListener("change", updateSummary));
+    document.querySelectorAll('input[name="user-purpose"]').forEach((r) => r.addEventListener("change", () => { state.userPurpose = getUserPurpose(); updateSummary(); }));
+    els.savedProfileSelect.addEventListener("change", () => { syncSavedFieldsFromSelection(); updateSummary(); });
+    els.savedCatName.addEventListener("input", updateSummary); els.savedMe.addEventListener("input", updateSummary); els.savedThem.addEventListener("input", updateSummary);
+    els.tabUserDirect.addEventListener("click", () => { state.userMode = "direct"; els.tabUserDirect.setAttribute("aria-selected", "true"); els.tabUserSaved.setAttribute("aria-selected", "false"); els.paneUserDirect.classList.remove("panel-hidden"); els.paneUserSaved.classList.add("panel-hidden"); updateSummary(); });
+    els.tabUserSaved.addEventListener("click", () => { state.userMode = "saved"; els.tabUserSaved.setAttribute("aria-selected", "true"); els.tabUserDirect.setAttribute("aria-selected", "false"); els.paneUserSaved.classList.remove("panel-hidden"); els.paneUserDirect.classList.add("panel-hidden"); if (!els.savedProfileSelect.value && state.savedProfiles.length === 1) { els.savedProfileSelect.value = state.savedProfiles[0].id; syncSavedFieldsFromSelection(); } updateSummary(); });
+    els.btnProfileNew.addEventListener("click", () => { const cat = els.savedCatName.value.trim(); const me = els.savedMe.value.trim(); const them = els.savedThem.value.trim(); const rt = getRelationType(); if (!rt) { alert("관계 유형을 선택하세요."); return; } if (!cat) { alert("카테고리 이름을 입력하세요."); return; } const id = String(Date.now()); state.savedProfiles.push({ id, category: cat, me, them, relationType: rt }); persistProfiles(); renderSavedSelect(); els.savedProfileSelect.value = id; syncSavedFieldsFromSelection(); updateSummary(); });
+    els.btnProfileUpdate.addEventListener("click", () => { const id = els.savedProfileSelect.value; if (!id) { alert("수정할 항목을 먼저 선택하세요."); return; } const p = state.savedProfiles.find((x) => x.id === id); if (!p) return; const rt = getRelationType(); if (!rt) { alert("관계 유형을 선택하세요."); return; } p.category = els.savedCatName.value.trim(); p.me = els.savedMe.value.trim(); p.them = els.savedThem.value.trim(); p.relationType = rt; persistProfiles(); renderSavedSelect(); els.savedProfileSelect.value = id; syncSavedFieldsFromSelection(); updateSummary(); });
+    els.btnProfileDelete.addEventListener("click", () => { const id = els.savedProfileSelect.value; if (!id) return; state.savedProfiles = state.savedProfiles.filter((x) => x.id !== id); persistProfiles(); renderSavedSelect(); updateSummary(); });
+    els.btnAnalyze.addEventListener("click", () => runAnalyze());
+
+    state.savedProfiles = loadProfiles(); renderSavedSelect(); renderMetrics(); renderFileList(); updateSummary(); renderRelationshipViz(); renderAnalysisRich();
+  </script>
+</body>
+</html>
