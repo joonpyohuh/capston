@@ -3,13 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "builds": [
-    { "src": "api/analyze.js", "use": "@vercel/node" },
-    { "src": "api/health.js",  "use": "@vercel/node" }
-  ],
-  "routes": [
-    { "src": "/api/health",  "dest": "/api/health.js"  },
-    { "src": "/api/analyze", "dest": "/api/analyze.js" },
-    { "src": "/(.*)",        "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
