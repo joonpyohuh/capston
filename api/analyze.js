@@ -93,7 +93,11 @@ Voice / style: If payload.meVoiceSamples is non-empty, learn diction from these 
 
 Relationship framing: payload.relationshipType is "동성" or "이성". Use this to calibrate social expectations and wording.
 
-Interpret using: payload.me, payload.them, payload.situation, payload.dialogueExcerpt, payload.userSelections, payload.userPurpose.`;
+Interpret using: payload.me, payload.them, payload.situation, payload.dialogueExcerpt, payload.userSelections, payload.userPurpose.${
+    payload.userInstruction
+      ? `\n\n[사용자 추가 지시사항 - 반드시 반영할 것]\n${payload.userInstruction.slice(0, 500)}`
+      : ""
+  }`;
 
   const user = JSON.stringify({
     me: payload.me,

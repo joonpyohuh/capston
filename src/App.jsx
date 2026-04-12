@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { SpeechProvider } from './context/SpeechContext.jsx'
 import Header from './components/Header.jsx'
 import InputSection from './components/InputSection.jsx'
@@ -7,6 +7,8 @@ import UserSection from './components/UserSection.jsx'
 import MetricsSection from './components/MetricsSection.jsx'
 import SummarySection from './components/SummarySection.jsx'
 import AnalysisSection from './components/AnalysisSection.jsx'
+import InstructionSection from './components/InstructionSection.jsx'
+import HistorySection from './components/HistorySection.jsx'
 import {
   extractParticipants,
   buildMeVoiceExcerpt,
@@ -55,9 +57,15 @@ export default function App() {
     Object.fromEntries(METRICS.map(m => [m.id, true]))
   )
 
+  const [userInstruction, setUserInstruction] = useState('')
+
   const [analyzeStatus, setAnalyzeStatus] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState(null)
+
+  const [historyRecords, setHistoryRecords] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const buildCombinedText = useCallback(() => {
     const parts = []
@@ -95,6 +103,45 @@ export default function App() {
     return { me: '', them: '' }
   }
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const r = await fetch('/api/history?limit=50')
+      if (r.ok) {
+        const data = await r.json()
+        setHistoryRecords(data.records || [])
+      }
+    } catch {
+      // 로컬 서버가 아닌 환경(Vercel 등)에서는 히스토리 없음
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadHistory()
+  }, [loadHistory])
+
+  const handleDeleteHistory = useCallback(async (id) => {
+    try {
+      await fetch(`/api/history/${id}`, { method: 'DELETE' })
+      setHistoryRecords(prev => prev.filter(r => r.id !== id))
+    } catch { /* ignore */ }
+  }, [])
+
+  const handleSelectReply = useCallback(async (id, replyIndex) => {
+    try {
+      await fetch(`/api/history/${id}/select-reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replyIndex }),
+      })
+      setHistoryRecords(prev =>
+        prev.map(r => r.id === id ? { ...r, selectedReplyIndex: replyIndex } : r)
+      )
+    } catch { /* ignore */ }
+  }, [])
+
   const handleAnalyze = async (t) => {
     const { me, them } = getEffectiveNames()
     if (!relationType) { setAnalyzeStatus(t.analyzeErrorRel); return }
@@ -115,6 +162,7 @@ export default function App() {
         situation: ctx.trim(),
         dialogue: dialogue.slice(0, 12000),
         meVoiceExcerpt,
+        userInstruction: userInstruction.trim(),
         currentMetrics: { ...metricValues },
         userSelections: {
           userMode,
@@ -143,6 +191,11 @@ export default function App() {
       }
       setAnalysisResult(data)
       setAnalyzeStatus(t.analyzeSuccess)
+
+      // 분석 완료 후 히스토리 갱신
+      if (data.recordId) {
+        loadHistory()
+      }
     } catch (e) {
       setAnalyzeStatus(e?.message || '분석에 실패했습니다. OPENAI_API_KEY를 확인해 주세요.')
     } finally {
@@ -168,6 +221,10 @@ export default function App() {
             refreshParticipants={refreshParticipants}
           />
           <PurposeSection purpose={purpose} setPurpose={setPurpose} />
+          <InstructionSection
+            instruction={userInstruction}
+            setInstruction={setUserInstruction}
+          />
           <UserSection
             userMode={userMode}
             setUserMode={setUserMode}
@@ -214,6 +271,37 @@ export default function App() {
             buildCombinedText={buildCombinedText}
           />
           <AnalysisSection result={analysisResult} />
+
+          {/* 히스토리 토글 버튼 */}
+          <div className="mt-4">
+            <button
+              onClick={() => setShowHistory(h => !h)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-white border border-toss-gray-200 rounded-2xl text-sm font-semibold text-toss-gray-700 hover:bg-toss-gray-50 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span>🗂️</span>
+                분석 히스토리
+                {historyRecords.length > 0 && (
+                  <span className="text-xs font-normal text-toss-gray-400">({historyRecords.length}건)</span>
+                )}
+              </span>
+              <svg
+                className={`w-4 h-4 text-toss-gray-400 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {showHistory && (
+            <HistorySection
+              records={historyRecords}
+              onDelete={handleDeleteHistory}
+              onSelectReply={handleSelectReply}
+              loading={historyLoading}
+            />
+          )}
         </main>
       </div>
     </SpeechProvider>

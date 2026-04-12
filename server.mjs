@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { handleInstagramWebhook, handleIntegrationsInbox } from "./chat-integrations.mjs";
+import { saveRecord, getHistory, deleteRecord, selectReply } from "./db.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8080;
@@ -153,7 +154,11 @@ Voice / style: If payload.meVoiceSamples is non-empty, learn diction from these 
 
 Relationship framing: payload.relationshipType is "동성" or "이성". Use this to calibrate social expectations and wording.
 
-Interpret using: payload.me, payload.them, payload.situation, payload.dialogueExcerpt, payload.userSelections, payload.userPurpose.`;
+Interpret using: payload.me, payload.them, payload.situation, payload.dialogueExcerpt, payload.userSelections, payload.userPurpose.${
+    payload.userInstruction
+      ? `\n\n[사용자 추가 지시사항 - 반드시 반영할 것]\n${payload.userInstruction.slice(0, 500)}`
+      : ""
+  }`;
 
   const user = JSON.stringify({
     me: payload.me,
@@ -224,7 +229,7 @@ const server = http.createServer(async (req, res) => {
       const replySuggestions = normalizeReplySuggestions(out.replySuggestions);
       const deepAngles = normalizeDeepAngles(out.deepAngles);
       const replyTiming = normalizeReplyTiming(out.replyTiming);
-      sendJson(res, 200, {
+      const responseData = {
         metrics,
         brief: String(out.brief || "").trim(),
         selectionSynthesis: String(out.selectionSynthesis || "").trim(),
@@ -233,11 +238,77 @@ const server = http.createServer(async (req, res) => {
         relationshipDetail: String(out.relationshipDetail || "").trim(),
         replySuggestions,
         replyTiming,
-      });
+      };
+
+      // DB에 분석 결과 저장
+      try {
+        const recordId = saveRecord({
+          me: payload.me,
+          them: payload.them,
+          relationType: payload.relationshipType,
+          purpose: payload.userPurpose,
+          situation: payload.situation,
+          dialogue: payload.dialogue,
+          userInstruction: payload.userInstruction,
+          metrics,
+          brief: responseData.brief,
+          selectionSynthesis: responseData.selectionSynthesis,
+          deepAngles,
+          replySuggestions,
+          replyTiming,
+          lastThemMessage: responseData.lastThemMessage,
+          relationshipDetail: responseData.relationshipDetail,
+        });
+        responseData.recordId = recordId;
+      } catch (dbErr) {
+        console.error("DB 저장 실패 (무시):", dbErr.message);
+      }
+
+      sendJson(res, 200, responseData);
     } catch (e) {
       if (e.message === "NO_KEY")
         sendJson(res, 503, { error: "OPENAI_API_KEY가 없습니다. proto 폴더의 .env 파일 또는 환경 변수를 설정하세요." });
       else sendJson(res, 500, { error: e.message || "분석 실패" });
+    }
+    return;
+  }
+
+  // 히스토리 목록 조회
+  if (req.method === "GET" && u.pathname === "/api/history") {
+    try {
+      const limit = parseInt(u.searchParams.get("limit") || "50", 10);
+      const records = getHistory(Math.min(limit, 200));
+      sendJson(res, 200, { records });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message || "히스토리 조회 실패" });
+    }
+    return;
+  }
+
+  // 히스토리 레코드 삭제
+  if (req.method === "DELETE" && u.pathname.startsWith("/api/history/")) {
+    const id = u.pathname.slice("/api/history/".length);
+    if (!id) { sendJson(res, 400, { error: "id 필요" }); return; }
+    try {
+      const ok = deleteRecord(id);
+      sendJson(res, ok ? 200 : 404, { ok });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message });
+    }
+    return;
+  }
+
+  // 선택한 답장 저장
+  if (req.method === "POST" && u.pathname.startsWith("/api/history/") && u.pathname.endsWith("/select-reply")) {
+    const parts = u.pathname.split("/");
+    const id = parts[parts.length - 2];
+    try {
+      const body = await readBody(req);
+      const { replyIndex } = JSON.parse(body || "{}");
+      const ok = selectReply(id, replyIndex);
+      sendJson(res, ok ? 200 : 404, { ok });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message });
     }
     return;
   }
