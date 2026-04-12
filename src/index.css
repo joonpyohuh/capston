@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: #F2F4F6;
+    color: #191F28;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .toss-card {
+    @apply bg-white rounded-2xl shadow-card p-5 mb-4;
+  }
+
+  .toss-btn-primary {
+    @apply w-full py-3.5 px-6 bg-toss-blue text-white font-semibold text-base rounded-2xl
+           hover:bg-toss-blue-hover active:scale-[0.98] transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .toss-btn-secondary {
+    @apply py-2.5 px-4 bg-toss-gray-100 text-toss-gray-700 font-medium text-sm rounded-xl
+           hover:bg-toss-gray-200 active:scale-[0.98] transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .toss-input {
+    @apply w-full px-4 py-3 bg-toss-gray-50 border border-toss-gray-200 rounded-xl
+           text-toss-gray-900 text-sm placeholder-toss-gray-400
+           focus:outline-none focus:ring-2 focus:ring-toss-blue focus:border-transparent
+           transition-all duration-150;
+  }
+
+  .toss-textarea {
+    @apply w-full px-4 py-3 bg-toss-gray-50 border border-toss-gray-200 rounded-xl
+           text-toss-gray-900 text-sm placeholder-toss-gray-400 resize-none
+           focus:outline-none focus:ring-2 focus:ring-toss-blue focus:border-transparent
+           transition-all duration-150 leading-relaxed;
+  }
+
+  .toss-tab {
+    @apply px-4 py-2 text-sm font-medium rounded-xl text-toss-gray-500
+           transition-all duration-150 cursor-pointer;
+  }
+
+  .toss-tab-active {
+    @apply bg-toss-blue-light text-toss-blue font-semibold;
+  }
+
+  .toss-label {
+    @apply block text-xs font-medium text-toss-gray-500 mb-1.5;
+  }
+
+  .toss-section-title {
+    @apply text-base font-bold text-toss-gray-900 mb-1;
+  }
+
+  .toss-hint {
+    @apply text-xs text-toss-gray-400 leading-relaxed;
+  }
+
+  .toss-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 bg-toss-blue-light text-toss-blue
+           text-xs font-medium rounded-full;
+  }
+
+  .toss-toggle {
+    @apply relative inline-flex items-center cursor-pointer;
+  }
+}
+
+/* range slider toss style */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: #E5E8EB;
+  outline: none;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3182F6;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(49, 130, 246, 0.35);
+  border: 2px solid white;
+  transition: transform 0.1s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #3182F6;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(49, 130, 246, 0.35);
+  border: 2px solid white;
+}
+
+/* scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D6DB;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B0B8C1;
+}
