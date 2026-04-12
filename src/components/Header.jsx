@@ -20,14 +20,19 @@ export default function Header() {
         <button
           onClick={toggle}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-toss-gray-100 hover:bg-toss-gray-200 transition-colors duration-150"
+          title="AI가 추천하는 답장 말투를 바꿉니다"
         >
-          <span className="text-xs font-semibold text-toss-gray-700">
+          <span className="text-[10px] text-toss-gray-400">답장 말투</span>
+          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg ${
+            mode === 'formal'
+              ? 'bg-toss-blue text-white'
+              : 'bg-orange-400 text-white'
+          }`}>
             {mode === 'formal' ? '존댓말' : '반말'}
           </span>
-          <span className="text-toss-gray-400">|</span>
-          <span className="text-xs text-toss-blue font-medium">
-            {t.altModeLabel}
-          </span>
+          <svg className="w-3.5 h-3.5 text-toss-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
         </button>
       </div>
     </header>

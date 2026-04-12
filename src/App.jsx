@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { SpeechProvider } from './context/SpeechContext.jsx'
+import { SpeechProvider, useSpeech } from './context/SpeechContext.jsx'
 import Header from './components/Header.jsx'
 import InputSection from './components/InputSection.jsx'
 import PurposeSection from './components/PurposeSection.jsx'
@@ -34,7 +34,10 @@ function loadProfiles() {
   }
 }
 
-export default function App() {
+// SpeechProvider 안에서 렌더되어 useSpeech()에 접근 가능
+function AppContent() {
+  const { t, mode } = useSpeech()
+
   const [uploadedFiles, setUploadedFiles] = useState([])
   const [smsPaste, setSmsPaste] = useState('')
   const [rawSmsSingle, setRawSmsSingle] = useState('')
@@ -142,18 +145,20 @@ export default function App() {
     } catch { /* ignore */ }
   }, [])
 
-  const handleAnalyze = async (t) => {
+  const handleAnalyze = async (tParam) => {
+    const lang = tParam || t
     const { me, them } = getEffectiveNames()
-    if (!relationType) { setAnalyzeStatus(t.analyzeErrorRel); return }
-    if (!me || !them) { setAnalyzeStatus(t.analyzeErrorNames); return }
+    if (!relationType) { setAnalyzeStatus(lang.analyzeErrorRel); return }
+    if (!me || !them) { setAnalyzeStatus(lang.analyzeErrorNames); return }
     const dialogue = buildCombinedText()
     if (dialogue.length < 30 && ctx.trim().length < 20) {
-      setAnalyzeStatus(t.analyzeErrorData); return
+      setAnalyzeStatus(lang.analyzeErrorData); return
     }
     setAnalyzing(true)
-    setAnalyzeStatus(t.analyzing)
+    setAnalyzeStatus(lang.analyzing)
     try {
       const meVoiceExcerpt = buildMeVoiceExcerpt(dialogue, me)
+      // mode: 'formal' → 존댓말 답장 / 'informal' → 반말 답장
       const body = JSON.stringify({
         me,
         them,
@@ -163,6 +168,7 @@ export default function App() {
         dialogue: dialogue.slice(0, 12000),
         meVoiceExcerpt,
         userInstruction: userInstruction.trim(),
+        replyTone: mode,
         currentMetrics: { ...metricValues },
         userSelections: {
           userMode,
@@ -190,7 +196,7 @@ export default function App() {
         if (typeof m[id] === 'number') applyAiMetric(id, m[id])
       }
       setAnalysisResult(data)
-      setAnalyzeStatus(t.analyzeSuccess)
+      setAnalyzeStatus(lang.analyzeSuccess)
 
       // 분석 완료 후 히스토리 갱신
       if (data.recordId) {
@@ -204,106 +210,112 @@ export default function App() {
   }
 
   return (
-    <SpeechProvider>
-      <div className="min-h-screen bg-toss-gray-100">
-        <Header />
-        <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
-          <InputSection
-            uploadedFiles={uploadedFiles}
-            setUploadedFiles={setUploadedFiles}
-            smsPaste={smsPaste}
-            setSmsPaste={setSmsPaste}
-            rawSmsSingle={rawSmsSingle}
-            setRawSmsSingle={setRawSmsSingle}
-            ctx={ctx}
-            setCtx={setCtx}
-            participants={participants}
-            refreshParticipants={refreshParticipants}
-          />
-          <PurposeSection purpose={purpose} setPurpose={setPurpose} />
-          <InstructionSection
-            instruction={userInstruction}
-            setInstruction={setUserInstruction}
-          />
-          <UserSection
-            userMode={userMode}
-            setUserMode={setUserMode}
-            directMe={directMe}
-            setDirectMe={setDirectMe}
-            directThem={directThem}
-            setDirectThem={setDirectThem}
-            relationType={relationType}
-            setRelationType={setRelationType}
-            savedProfiles={savedProfiles}
-            setSavedProfiles={setSavedProfiles}
-            participants={participants}
-            analyzing={analyzing}
-            analyzeStatus={analyzeStatus}
-            onAnalyze={handleAnalyze}
-          />
-          <MetricsSection
-            metrics={METRICS}
-            values={metricValues}
-            locked={metricLocked}
-            aiAllow={metricAiAllow}
-            onChange={handleMetricChange}
-            onLockChange={(id, v) => setMetricLocked(prev => ({ ...prev, [id]: v }))}
-            onAiAllowChange={(id, v) => setMetricAiAllow(prev => ({ ...prev, [id]: v }))}
-            directMe={directMe}
-            directThem={directThem}
-            userMode={userMode}
-            savedProfiles={savedProfiles}
-          />
-          <SummarySection
-            metricValues={metricValues}
-            metricLocked={metricLocked}
-            metricAiAllow={metricAiAllow}
-            metrics={METRICS}
-            userMode={userMode}
-            purpose={purpose}
-            relationType={relationType}
-            directMe={directMe}
-            directThem={directThem}
-            savedProfiles={savedProfiles}
-            uploadedFiles={uploadedFiles}
-            ctx={ctx}
-            analysisResult={analysisResult}
-            buildCombinedText={buildCombinedText}
-          />
-          <AnalysisSection result={analysisResult} />
+    <div className="min-h-screen bg-toss-gray-100">
+      <Header />
+      <main className="max-w-2xl mx-auto px-4 pb-20 pt-4">
+        <InputSection
+          uploadedFiles={uploadedFiles}
+          setUploadedFiles={setUploadedFiles}
+          smsPaste={smsPaste}
+          setSmsPaste={setSmsPaste}
+          rawSmsSingle={rawSmsSingle}
+          setRawSmsSingle={setRawSmsSingle}
+          ctx={ctx}
+          setCtx={setCtx}
+          participants={participants}
+          refreshParticipants={refreshParticipants}
+        />
+        <PurposeSection purpose={purpose} setPurpose={setPurpose} />
+        <InstructionSection
+          instruction={userInstruction}
+          setInstruction={setUserInstruction}
+        />
+        <UserSection
+          userMode={userMode}
+          setUserMode={setUserMode}
+          directMe={directMe}
+          setDirectMe={setDirectMe}
+          directThem={directThem}
+          setDirectThem={setDirectThem}
+          relationType={relationType}
+          setRelationType={setRelationType}
+          savedProfiles={savedProfiles}
+          setSavedProfiles={setSavedProfiles}
+          participants={participants}
+          analyzing={analyzing}
+          analyzeStatus={analyzeStatus}
+          onAnalyze={handleAnalyze}
+        />
+        <MetricsSection
+          metrics={METRICS}
+          values={metricValues}
+          locked={metricLocked}
+          aiAllow={metricAiAllow}
+          onChange={handleMetricChange}
+          onLockChange={(id, v) => setMetricLocked(prev => ({ ...prev, [id]: v }))}
+          onAiAllowChange={(id, v) => setMetricAiAllow(prev => ({ ...prev, [id]: v }))}
+          directMe={directMe}
+          directThem={directThem}
+          userMode={userMode}
+          savedProfiles={savedProfiles}
+        />
+        <SummarySection
+          metricValues={metricValues}
+          metricLocked={metricLocked}
+          metricAiAllow={metricAiAllow}
+          metrics={METRICS}
+          userMode={userMode}
+          purpose={purpose}
+          relationType={relationType}
+          directMe={directMe}
+          directThem={directThem}
+          savedProfiles={savedProfiles}
+          uploadedFiles={uploadedFiles}
+          ctx={ctx}
+          analysisResult={analysisResult}
+          buildCombinedText={buildCombinedText}
+        />
+        <AnalysisSection result={analysisResult} />
 
-          {/* 히스토리 토글 버튼 */}
-          <div className="mt-4">
-            <button
-              onClick={() => setShowHistory(h => !h)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-white border border-toss-gray-200 rounded-2xl text-sm font-semibold text-toss-gray-700 hover:bg-toss-gray-50 transition-colors"
+        {/* 히스토리 토글 버튼 */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-toss-gray-200 rounded-2xl text-sm font-semibold text-toss-gray-700 hover:bg-toss-gray-50 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span>🗂️</span>
+              분석 히스토리
+              {historyRecords.length > 0 && (
+                <span className="text-xs font-normal text-toss-gray-400">({historyRecords.length}건)</span>
+              )}
+            </span>
+            <svg
+              className={`w-4 h-4 text-toss-gray-400 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
             >
-              <span className="flex items-center gap-2">
-                <span>🗂️</span>
-                분석 히스토리
-                {historyRecords.length > 0 && (
-                  <span className="text-xs font-normal text-toss-gray-400">({historyRecords.length}건)</span>
-                )}
-              </span>
-              <svg
-                className={`w-4 h-4 text-toss-gray-400 transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
 
-          {showHistory && (
-            <HistorySection
-              records={historyRecords}
-              onDelete={handleDeleteHistory}
-              onSelectReply={handleSelectReply}
-              loading={historyLoading}
-            />
-          )}
-        </main>
-      </div>
+        {showHistory && (
+          <HistorySection
+            records={historyRecords}
+            onDelete={handleDeleteHistory}
+            onSelectReply={handleSelectReply}
+            loading={historyLoading}
+          />
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <SpeechProvider>
+      <AppContent />
     </SpeechProvider>
   )
 }

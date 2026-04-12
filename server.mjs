@@ -150,7 +150,17 @@ Required keys:
   Each "reason" explains in 2-4 Korean sentences why this reply fits the goal, tone, and relationship.
   "closenessAfter" = predicted closeness change (0=very distant, 100=very close). Vary the three options.
 
-Voice / style: If payload.meVoiceSamples is non-empty, learn diction from these samples (honorific level, sentence length, endings, emoji, abbreviations). Each replySuggestions[].text must sound like the same person wrote it.
+REPLY SPEECH LEVEL (답장 말투) — CRITICAL RULE:
+${payload.replyTone === "informal"
+  ? `The user wants INFORMAL Korean (반말) in all replySuggestions[].text.
+EVERY replySuggestions[].text MUST use 반말 endings: ~야, ~어, ~지, ~거든, ~잖아, ~ㄴ데, ~네, ~게, ~해, ~할게, ~볼게 등.
+NEVER use 존댓말 endings (~요, ~습니다, ~세요, ~ㄹ게요) in the reply texts. 반말 only.`
+  : `The user wants FORMAL Korean (존댓말) in all replySuggestions[].text.
+EVERY replySuggestions[].text MUST use 존댓말 endings: ~요, ~습니다, ~세요, ~ㄹ게요, ~네요, ~죠 등.
+NEVER use casual 반말 endings in the reply texts. 존댓말 only.`
+}
+
+Voice / style: If payload.meVoiceSamples is non-empty, learn diction from these samples (emoji, abbreviations, sentence length) but ALWAYS respect the above REPLY SPEECH LEVEL rule. Each replySuggestions[].text must sound like the same person wrote it.
 
 Relationship framing: payload.relationshipType is "동성" or "이성". Use this to calibrate social expectations and wording.
 
