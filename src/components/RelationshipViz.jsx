@@ -14,8 +14,11 @@ export default function RelationshipViz({ values, me, them }) {
   const left = 18
   const right = 82
   const span = right - left
-  const mePos = left + (relationDistance / 100) * (span * 0.4)
-  const themPos = right - (relationDistance / 100) * (span * 0.4)
+  // 거리(relationDistance)가 클수록 두 노드가 양 끝에 위치 (시각적으로 멀어짐)
+  // 거리(relationDistance)가 작을수록 두 노드가 가운데로 모임 (시각적으로 가까워짐)
+  const proximity = (100 - relationDistance) / 100
+  const mePos = left + proximity * (span * 0.4)
+  const themPos = right - proximity * (span * 0.4)
 
   const meFace = burden >= 70 ? '😩' : distanceWill >= 70 ? '🙂' : warmth >= 70 ? '😊' : '😶'
   const themFace = warmth >= 75 ? '😊' : warmth >= 45 ? '🙂' : '😐'

@@ -4,6 +4,71 @@ function clampInt(x) {
   return Math.max(0, Math.min(100, n));
 }
 
+/**
+ * 대화 텍스트에서 상대방(them)의 가장 마지막 메시지를 코드로 직접 추출합니다.
+ * 카카오톡 PC/모바일 내보내기 포맷을 지원하며, 가장 최근 메시지를 보장합니다.
+ */
+function extractLastThemMessage(dialogue, themLabel) {
+  if (!dialogue || !themLabel) return '';
+  const them = themLabel.trim();
+  const lines = dialogue.split(/\r?\n/);
+  let lastMsg = '';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // 카카오톡 PC 내보내기: "오전 10:00, 이름 : 메시지"
+    const pcMatch = trimmed.match(/^(?:오전|오후)\s*\d{1,2}:\d{2},\s*(.+?)\s*:\s*(.+)$/);
+    if (pcMatch) {
+      const name = pcMatch[1].trim();
+      if (name === them) {
+        const body = pcMatch[2].trim();
+        if (body) lastMsg = body;
+      }
+      continue;
+    }
+
+    // 카카오톡 구 PC 포맷: "날짜, 이름 : 메시지"
+    const sep = trimmed.indexOf(' : ');
+    if (sep > 0) {
+      const left = trimmed.slice(0, sep);
+      const c = left.lastIndexOf(',');
+      if (c >= 0) {
+        const name = left.slice(c + 1).trim();
+        if (name === them) {
+          const body = trimmed.slice(sep + 3).trim();
+          if (body) lastMsg = body;
+        }
+        continue;
+      }
+    }
+
+    // 카카오톡 모바일 내보내기: "[이름] [오전 10:00] 메시지"
+    const br = trimmed.match(/^\[([^\]]+)\]\s*(?:\[[^\]]*\]\s*)?(.+)$/);
+    if (br) {
+      const name = br[1].trim();
+      if (name === them) {
+        const body = br[2].trim();
+        if (body && !/^오[전후]\s*\d/.test(body)) lastMsg = body;
+      }
+      continue;
+    }
+
+    // 일반 포맷: "name: message"
+    const col = trimmed.match(/^([^:\n]{1,40})\s*:\s*(.+)$/);
+    if (col && !/^https?:/i.test(trimmed)) {
+      const name = col[1].trim();
+      if (name === them) {
+        const body = col[2].trim();
+        if (body) lastMsg = body;
+      }
+    }
+  }
+
+  return lastMsg;
+}
+
 function normalizeReplySuggestions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -40,6 +105,9 @@ async function callOpenAI(payload) {
   if (!key) throw new Error("NO_KEY");
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
+  // 코드로 직접 파싱한 상대방 마지막 메시지 (LLM 판단보다 우선)
+  const parsedLastThemMessage = extractLastThemMessage(payload.dialogue || "", payload.them || "");
+
   const purposeMap = {
     distance: "거리두기 (상대와 자연스럽게 멀어지고 싶음)",
     gauge: "관계 파악 (현재 관계 거리와 상태를 파악하고 싶음)",
@@ -58,7 +126,14 @@ Adapt ALL your analysis, strategy, and suggestions to this goal:
 Reply with ONLY one JSON object (no markdown code fences), UTF-8, all user-facing strings in Korean.
 
 Required keys:
-- affinity, closeness, burden, distanceWill: integers 0-100. Infer from dialogue + situation + payload.userSelections.metrics.
+- affinity, closeness, burden, distanceWill: integers 0-100.
+  CRITICAL — compute each value by analyzing the actual dialogue text and situation description:
+  • affinity (호감·신뢰): how positively and warmly "me" feels toward the counterpart based on tone, word choice, and content.
+  • closeness (대화 친밀도): how frequent, deep, and reciprocal the conversation is — short/sparse = low, rich/regular = high.
+  • burden (부담·소모): how much fatigue, pressure, or one-sidedness "me" experiences in this interaction.
+  • distanceWill (거리두기 의지): how strongly "me" seems to want emotional or physical distance from the counterpart.
+  For each metric: if directLockManual=true in userSelections.metrics, you MUST return the user's provided value exactly.
+  If directLockManual=false, you MUST derive the value INDEPENDENTLY from the dialogue — do NOT default to 50. Vary the values meaningfully (e.g., one metric can be 30 while another is 75). The initial hint values shown in userSelections are just defaults the user hasn't set yet; ignore them when aiResultMayAdjust=true.
 
 - brief: Korean, 3-5 sentences. Executive summary tailored to the userPurpose: relationship flow, key tension points, and recommended direction.
 
@@ -77,7 +152,11 @@ Required keys:
   (4) 리스크 관리 및 다음 행동/말투 전략 (userPurpose 기반)
   (5) 관계 시나리오 — 가까워짐/유지/이탈 가능성과 조건
 
-- lastThemMessage: string. Identify the counterpart's last message in the dialogue. Quote or closely paraphrase in Korean.
+- lastThemMessage: string. The counterpart's last (most recent) message.${
+    parsedLastThemMessage
+      ? ` IMPORTANT: The system has already extracted this via code parsing: "${parsedLastThemMessage.slice(0, 300)}". You MUST use this exact text as lastThemMessage.`
+      : " Identify the counterpart's MOST RECENT (last in time) message in the dialogue. Quote or closely paraphrase in Korean."
+  }
 
 - relationshipDetail: string, Korean, 14-22 sentences. Deep narrative covering power balance, emotional tone, reciprocity, pressure points, attachment, and how the metrics interact. Ground every claim in dialogue or situation. Align conclusions with userPurpose.
 
@@ -115,10 +194,10 @@ Interpret using: payload.me, payload.them, payload.situation, payload.dialogueEx
     relationshipType: String(payload.relationshipType || "").trim(),
     userPurpose: payload.userPurpose || "distance",
     situation: payload.situation,
-    dialogueExcerpt: String(payload.dialogue || "").slice(0, 12000),
+    dialogueExcerpt: String(payload.dialogue || "").slice(-12000),
     meVoiceSamples: String(payload.meVoiceExcerpt || payload.meVoiceSamples || "").slice(0, 8000),
-    currentMetricsHint: payload.currentMetrics || {},
     userSelections: payload.userSelections || null,
+    ...(parsedLastThemMessage ? { lastThemMessageExtracted: parsedLastThemMessage } : {}),
   });
 
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -153,6 +232,11 @@ Interpret using: payload.me, payload.them, payload.situation, payload.dialogueEx
     if (!m) throw new Error("모델 응답을 JSON으로 파싱하지 못했습니다.");
     parsed = JSON.parse(m[0]);
   }
+
+  // 코드 파싱 결과가 있으면 LLM 판단을 오버라이드
+  if (parsedLastThemMessage) {
+    parsed._parsedLastThemMessage = parsedLastThemMessage;
+  }
   return parsed;
 }
 
@@ -172,12 +256,15 @@ export default async function handler(req, res) {
     const replySuggestions = normalizeReplySuggestions(out.replySuggestions);
     const deepAngles = normalizeDeepAngles(out.deepAngles);
     const replyTiming = normalizeReplyTiming(out.replyTiming);
+    // 코드 파싱 결과가 있으면 LLM 판단보다 우선 사용
+    const lastThemMessage = (out._parsedLastThemMessage || "").trim()
+      || String(out.lastThemMessage || "").trim();
     res.status(200).json({
       metrics,
       brief: String(out.brief || "").trim(),
       selectionSynthesis: String(out.selectionSynthesis || "").trim(),
       deepAngles,
-      lastThemMessage: String(out.lastThemMessage || "").trim(),
+      lastThemMessage,
       relationshipDetail: String(out.relationshipDetail || "").trim(),
       replySuggestions,
       replyTiming,
