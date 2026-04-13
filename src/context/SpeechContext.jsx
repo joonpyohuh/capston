@@ -197,7 +197,8 @@ export function SpeechProvider({ children }) {
   const [mode, setMode] = useState('formal')
 
   const toggle = () => setMode(m => m === 'formal' ? 'informal' : 'formal')
-  const t = texts[mode]
+  // UI 텍스트는 항상 존댓말(formal)로 고정, mode는 AI 답장 말투(replyTone)에만 사용
+  const t = texts.formal
 
   return (
     <SpeechContext.Provider value={{ t, mode, toggle }}>

@@ -758,7 +758,7 @@
         const meVoiceExcerpt = buildMeVoiceExcerpt(dialogue, me); const purpose = getUserPurpose();
         const r = await fetch("/api/analyze", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ me, them, relationshipType: getRelationType() === "same" ? "동성" : "이성", userPurpose: purpose, situation, dialogue: dialogue.slice(0, 12000), meVoiceExcerpt, currentMetrics: { ...state.values }, userSelections: { userMode: state.userMode, savedCategory: state.userMode === "saved" ? els.savedCatName.value.trim() : "", userPurpose: purpose, metrics: METRICS.map((m) => ({ id: m.id, nameKo: m.name, value: state.values[m.id], directLockManual: state.locked[m.id], aiResultMayAdjust: state.aiAdjustAllowed[m.id] })) } }),
+          body: JSON.stringify({ me, them, relationshipType: getRelationType() === "same" ? "동성" : "이성", userPurpose: purpose, situation, dialogue: dialogue.slice(-12000), meVoiceExcerpt, currentMetrics: { ...state.values }, userSelections: { userMode: state.userMode, savedCategory: state.userMode === "saved" ? els.savedCatName.value.trim() : "", userPurpose: purpose, metrics: METRICS.map((m) => ({ id: m.id, nameKo: m.name, value: state.values[m.id], directLockManual: state.locked[m.id], aiResultMayAdjust: state.aiAdjustAllowed[m.id] })) } }),
         });
         let data; try { data = await r.json(); } catch { throw new Error("서버 응답을 읽을 수 없습니다."); }
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);

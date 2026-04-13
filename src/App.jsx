@@ -9,6 +9,7 @@ import SummarySection from './components/SummarySection.jsx'
 import AnalysisSection from './components/AnalysisSection.jsx'
 import InstructionSection from './components/InstructionSection.jsx'
 import HistorySection from './components/HistorySection.jsx'
+import TechInfoSection from './components/TechInfoSection.jsx'
 import {
   extractParticipants,
   buildMeVoiceExcerpt,
@@ -165,7 +166,7 @@ function AppContent() {
         relationshipType: relationType === 'same' ? '동성' : '이성',
         userPurpose: purpose,
         situation: ctx.trim(),
-        dialogue: dialogue.slice(0, 12000),
+        dialogue: dialogue.slice(-12000),
         meVoiceExcerpt,
         userInstruction: userInstruction.trim(),
         replyTone: mode,
@@ -307,6 +308,8 @@ function AppContent() {
             loading={historyLoading}
           />
         )}
+
+        <TechInfoSection />
       </main>
     </div>
   )
